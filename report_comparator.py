@@ -3,7 +3,7 @@ import argparse
 import os
 import tempfile
 from urllib import error, request
-from xml.etree import ElementTree as ET
+from robot.result import ExecutionResult, TestSuite
 from typing import Dict
 
 
@@ -21,7 +21,6 @@ def parse_args() -> argparse.Namespace:
     return args
 
 def download_file(url: str, temp_dir: str) -> str:
-    """Скачивает файл по URL во временную папку и возвращает путь к нему."""
     try:
         filename = "output.xml"
         filepath = os.path.join(temp_dir, filename)
@@ -39,37 +38,22 @@ def download_file(url: str, temp_dir: str) -> str:
         sys.exit(1)
 
 def parse_output_xml(filepath: str) -> Dict[str, str]:
-    """Парсит output.xml и возвращает {full_test_name: status}."""
-    try:
-        tree = ET.parse(filepath)
-        root = tree.getroot()
-    except Exception as e:
-        print(f"❌ Ошибка при парсинге {filepath}: {e}", file=sys.stderr)
-        sys.exit(1)
+    result = ExecutionResult(filepath)
 
     tests = {}
 
-    def extract_tests(elem, parent_path=""):
-        for child in elem:
-            if child.tag == "suite":
-                suite_name = child.get("name")
-                if suite_name:
-                    new_path = f"{parent_path}.{suite_name}" if parent_path else suite_name
-                    extract_tests(child, new_path)
-            elif child.tag == "test":
-                test_name = child.get("name")
-                if test_name:
-                    full_name = f"{parent_path}.{test_name}" if parent_path else test_name
-                    status_elem = child.find("status")
-                    status = status_elem.get("status") if status_elem is not None else "UNKNOWN"
-                    tests[full_name] = status
-        return tests
+    def extract_tests(suite: TestSuite):
+        if suite.suites:
+            for suite in suite.suites:
+                extract_tests(suite)
+        else:
+            for test in suite.tests:
+                tests[test.longname] = test.status
 
-    extract_tests(root)
+    extract_tests(result.suite)
     return tests
 
 def generate_markdown_report(differences: list, url1: str, url2: str, output_file: str) -> None:
-    """Генерирует Markdown-отчёт и сохраняет в файл."""
     with open(output_file, "w", encoding="utf-8") as f:
         f.write("# Сравнение отчётов Robot Framework\n\n")
         f.write(f"- **Отчёт 1**: `{url1}`\n")
@@ -80,20 +64,18 @@ def generate_markdown_report(differences: list, url1: str, url2: str, output_fil
             print("✅ Нет различий.")
             return
 
-        f.write(f"⚠️ **Найдено {len(differences)} различий:**\n\n")
-        f.write("| Тест | Отчёт 1 | Отчёт 2 |\n")
-        f.write("|------|---------|---------|\n")
+        f.write(f"⚠️ **Найдено различий: {len(differences)}**\n\n")
+        f.write("| Test | Report 1 | Report 2 |\n")
+        f.write("|------|----------|----------|\n")
 
         for test, s1, s2 in sorted(differences):
-            # Экранируем символы Markdown (особенно | и _)
             test_escaped = test.replace("|", "\\|").replace("_", "\\_")
             f.write(f"| {test_escaped} | `{s1}` | `{s2}` |\n")
 
-        print(f"✅ Найдено {len(differences)} различий. Отчёт сохранён в {output_file}")
+        print(f"✅ Найдено различий: {len(differences)}\n✅ Отчёт сохранён в {output_file}")
 
 def main():
     args = parse_args()
-    # Создаём временную директорию для скачанных файлов
     with tempfile.TemporaryDirectory() as temp_dir:
         file1 = download_file(args.urls[0], temp_dir)
         file2 = download_file(args.urls[1], temp_dir)
