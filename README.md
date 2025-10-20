@@ -19,5 +19,5 @@ pip3 install -r requirements.txt
 
 Use!
 ```
-./report_comparator.py link1 link2 --output output.md
+./report_comparator.py http://link1/to/output.xml http://link2/to/output.xml --output output.md
 ```
