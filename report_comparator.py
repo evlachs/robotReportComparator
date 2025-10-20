@@ -3,8 +3,8 @@ import argparse
 import os
 import tempfile
 from urllib import error, request
-from robot.result import ExecutionResult, TestSuite
 from typing import Dict
+from xml.etree import ElementTree
 
 
 def parse_args() -> argparse.Namespace:
@@ -38,19 +38,27 @@ def download_file(url: str, temp_dir: str) -> str:
         sys.exit(1)
 
 def parse_output_xml(filepath: str) -> Dict[str, str]:
-    result = ExecutionResult(filepath)
+    tree = ElementTree.parse(filepath)
+    root = tree.getroot()
 
     tests = {}
 
-    def extract_tests(suite: TestSuite):
-        if suite.suites:
-            for suite in suite.suites:
-                extract_tests(suite)
-        else:
-            for test in suite.tests:
-                tests[test.longname] = test.status
+    def extract_tests(suite: ElementTree.Element, parent_path="") -> None:
+        for test in suite:
+            if test.tag == "suite":
+                suite_name = test.get("name")
+                if suite_name:
+                    new_path = f"{parent_path}.{suite_name}" if parent_path else suite_name
+                    extract_tests(test, new_path)
+            elif test.tag == "test":
+                test_name = test.get("name")
+                if test_name:
+                    full_name = f"{parent_path}.{test_name}" if parent_path else test_name
+                    status_elem = test.find("status")
+                    status = status_elem.get("status") if status_elem is not None else "UNKNOWN"
+                    tests[full_name] = status
 
-    extract_tests(result.suite)
+    extract_tests(root[0])
     return tests
 
 def generate_markdown_report(differences: list, url1: str, url2: str, output_file: str) -> None:
