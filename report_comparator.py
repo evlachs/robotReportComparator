@@ -58,8 +58,7 @@ def parse_output_xml(filepath: str) -> Dict[str, str]:
                     status_elem = test.find('status')
                     status = status_elem.get('status') if status_elem is not None else 'UNKNOWN'
                     tests[full_name] = status
-
-    extract_tests(root[0])
+    extract_tests(root)
     return tests
 
 def generate_markdown_report(differences: list, url1: str, url2: str, output_file: str) -> None:
@@ -74,12 +73,12 @@ def generate_markdown_report(differences: list, url1: str, url2: str, output_fil
             return
 
         f.write(f'⚠️ **Найдено различий: {len(differences)}**\n\n')
-        f.write('| Test | Report 1 | Report 2 |\n')
-        f.write('|------|----------|----------|\n')
+        f.write('| Test | Report 1 | Report 2 | Manual Rerun |\n')
+        f.write('|------|----------|----------|--------------|\n')
 
         for test, s1, s2 in sorted(differences):
             test_escaped = test.replace('|', '\\|').replace('_', '\\_')
-            f.write(f'| {test_escaped} | `{s1}` | `{s2}` |\n')
+            f.write(f'| {test_escaped} | `{s1}` | `{s2}` | |\n')
 
         print(f'✅ Найдено различий: {len(differences)}\n✅ Отчёт сохранён в {output_file}')
 
