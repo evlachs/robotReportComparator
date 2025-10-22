@@ -64,8 +64,8 @@ def parse_output_xml(filepath: str) -> Dict[str, str]:
 def generate_markdown_report(differences: list, url1: str, url2: str, output_file: str) -> None:
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write('# Сравнение отчётов Robot Framework\n\n')
-        f.write(f'- **Отчёт 1**: `{url1}`\n')
-        f.write(f'- **Отчёт 2**: `{url2}`\n\n')
+        f.write(f'- **Отчёт 1**: {url1}\n')
+        f.write(f'- **Отчёт 2**: {url2}\n\n')
 
         if not differences:
             f.write('✅ **Нет различий в результатах тестов.**\n')
