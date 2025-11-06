@@ -18,6 +18,11 @@ def parse_args() -> argparse.Namespace:
         default='comparison_report.md',
         help='output file name in .md format'
     )
+    parser.add_argument(
+        '-m', '--skip_missing',
+        action='store_true',
+        help='include failed/passed difference only'
+    )
     args = parser.parse_args()
     return args
 
@@ -97,7 +102,9 @@ def main():
         for test in all_tests:
             status1 = tests1.get(test, 'MISSING')
             status2 = tests2.get(test, 'MISSING')
-            if status1 != status2:
+            if args.skip_missing and (status1 == 'MISSING' or status2 == 'MISSING'):
+                continue
+            elif status1 != status2:
                 differences.append((test, status1, status2))
 
         generate_markdown_report(differences, args.urls[0], args.urls[1], args.output)
